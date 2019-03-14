@@ -30,13 +30,13 @@ TLS 握手建立一个或多个输入的 secrets，如下文所述，将这些 s
 
 Transcript-Hash 和 HKDF 使用的 Hash 函数是密码套件哈希算法。Hash.length 是其输出长度(以字节为单位)。消息是表示的握手消息的串联，包括握手消息类型和长度字段，但不包括记录层头。请注意，在某些情况下，零长度 context（由 "" 表示）传递给 HKDF-Expand-Label。本文档中指定的 labels 都是 ASCII 字符串，不包括尾随 NUL 字节。
 
-注意：对于常见的哈希函数，任何超过 12 个字符的 label 都需要额外迭代哈希函数才能计算。所有标准都已选择符合此限制。
+注意：对于常见的哈希函数，任何超过 12 个字符的 label 都需要额外迭代哈希函数才能计算。所有标准都已选择遵守此限制。
 
 密钥是从使用 HKDF-Extract 和 Derive-Secret 函数的两个输入 secrets 中派生出来的。添加新 secret 的一般模式是使用 HKDF-Extract，其中 Salt 是当前的 secret 状态，输入密钥材料(IKM)是要添加的新 secret 。在此版本的 TLS 1.3 中，两个输入 secrets 是:  
 
 - PSK(外部建立的预共享密钥，或从先前连接的 resumption\_master\_secret 值派生的)
 
-- (EC)DHE 共享 secret ([Section 7.4](https://tools.ietf.org/html/rfc8446#section-7.4))
+- (EC)DHE 共享 secret ([Section 7.4](https://github.com/halfrost/Halfrost-Field/blob/master/contents/Protocol/TLS_1.3_Cryptographic_Computations.md#%E5%9B%9B-ecdhe-shared-secret-calculation))
 
 
 这将生成一个完整的密钥推导计划，如下图所示。在此图中，约定以下的格式：
@@ -99,7 +99,7 @@ Transcript-Hash 和 HKDF 使用的 Hash 函数是密码套件哈希算法。Hash
 ```
 
 
-这里的一般模式指的是，图左侧显示的 secrets 是没有上下文的原始熵，而右侧的 secrets 包括握手上下文，因此可以用来派生工作密钥而无需额外的上下文。请注意，对 Derive-Secret 的不同调用可能会使用不同的 Messages 参数，即使是具有相同的 secret。在 0-RTT 交换中，Derive-Secret 和四个不同的副本一起被调用;在 1-RTT-only 交换中，它和三个不同的副本一起被调用。
+这里的一般模式指的是，图左侧显示的 secrets 是没有上下文的原始熵，而右侧的 secrets 包括握手上下文，因此可以用来派生工作密钥而无需额外的上下文。请注意，对 Derive-Secret 的不同调用可能会使用不同的 Messages 参数，即使是具有相同的 secret。在 0-RTT 交换中，Derive-Secret 和四个不同的副本一起被调用；在 1-RTT-only 交换中，它和三个不同的副本一起被调用。
 
 如果给定的 secret 不可用，则使用由设置为零的 Hash.length 字节串组成的 0 值。请注意，这并不意味着要跳过轮次，因此如果 PSK 未被使用，Early Secret 仍将是 HKDF-Extract(0,0)。对于 binder\_key 的计算，label 是外部 PSK(在 TLS 之外提供的那些)的 "ext binder" 和用于恢复 PSK 的 "res binder"(提供为先前握手的恢复主密钥的那些)。不同的 labels 阻止了一种 PSK 替代另一种 PSK。
 
@@ -112,7 +112,7 @@ Transcript-Hash 和 HKDF 使用的 Hash 函数是密码套件哈希算法。Hash
 
 ## 二. Updating Traffic Secrets
 
-一旦握手完成后，任何一方都可以使用[第 4.6.3 节](https://tools.ietf.org/html/rfc8446#section-4.6.3)中定义的 KeyUpdate 握手消息更新其发送流量密钥。 下一代流量密钥的计算方法是，如本节所述，从 client\_ / server\_application\_traffic\_secret\_N 生成出 client\_ / server\_application\_traffic\_secret\_N + 1，然后按 [7.3 节](https://tools.ietf.org/html/rfc8446#section-7.3)所述方法重新导出流量密钥。
+一旦握手完成后，任何一方都可以使用[第 4.6.3 节](https://github.com/halfrost/Halfrost-Field/blob/master/contents/Protocol/TLS_1.3_Handshake_Protocol.md#3-key-and-initialization-vector-update)中定义的 KeyUpdate 握手消息更新其发送流量密钥。 下一代流量密钥的计算方法是，如本节所述，从 client\_ / server\_application\_traffic\_secret\_N 生成出 client\_ / server\_application\_traffic\_secret\_N + 1，然后按 [7.3 节](https://github.com/halfrost/Halfrost-Field/blob/master/contents/Protocol/TLS_1.3_Cryptographic_Computations.md#%E4%B8%89-traffic-key-calculation)所述方法重新导出流量密钥。
 
 下一代 application\_traffic\_secret 计算方法如下：
 
@@ -143,7 +143,7 @@ Transcript-Hash 和 HKDF 使用的 Hash 函数是密码套件哈希算法。Hash
 
 ```c
   [sender]_write_key = HKDF-Expand-Label(Secret, "key", "", key_length)
-   [sender]_write_iv  = HKDF-Expand-Label(Secret, "iv", "", iv_length)
+  [sender]_write_iv  = HKDF-Expand-Label(Secret, "iv", "", iv_length)
 ```
 
 [sender] 表示发送方。每种记录类型的 Secret 值显示在下表中:
@@ -161,7 +161,7 @@ Transcript-Hash 和 HKDF 使用的 Hash 函数是密码套件哈希算法。Hash
 ```
 
 
-每当底层 Secret 更改时(例如，从握手更改为应用程序数据密钥或密钥更新时)，将重新计算所有流量密钥材料。
+每当底层 Secret 更改时(例如，从握手更改为应用数据密钥或密钥更新时)，将重新计算所有流量密钥材料。
 
 ## 四. (EC)DHE Shared Secret Calculation
 
@@ -193,7 +193,7 @@ Transcript-Hash 和 HKDF 使用的 Hash 函数是密码套件哈希算法。Hash
 ## 五. Exporters
 
 
-[RFC5705] 根据 TLS 伪随机函数(PRF)定义 TLS 的密钥材料 exporter。本文档用 HKDF 取代 PRF，因此需要新的结构。exporter 的接口保持不变。
+[RFC5705](https://tools.ietf.org/html/rfc5705) 根据 TLS 伪随机函数(PRF)定义 TLS 的密钥材料 exporter。本文档用 HKDF 取代 PRF，因此需要新的结构。exporter 的接口保持不变。
 
 exporter 的值计算方法如下:
 
@@ -203,7 +203,7 @@ exporter 的值计算方法如下:
                          "exporter", Hash(context_value), key_length)
 ```
 
-Secret 可以是 early\_exporter\_master\_secret 或 exporter\_master\_secret。除非应用程序明确指定，否则实现方必须使用exporter\_master\_secret。early\_exporter\_master\_secret 被定义用来在 0-RTT 数据需要 exporter 的设置这种情况中使用。建议为 early exporter 提供单独的接口;这可以避免 exporter 用户在需要常规 exporter 时意外使用 early exporter，反之亦然。
+Secret 可以是 early\_exporter\_master\_secret 或 exporter\_master\_secret。除非应用程序明确指定，否则实现方必须使用 exporter\_master\_secret。early\_exporter\_master\_secret 被定义用来在 0-RTT 数据需要 exporter 的设置这种情况中使用。建议为 early exporter 提供单独的接口；这可以避免 exporter 用户在需要常规 exporter 时意外使用 early exporter，反之亦然。
 
 如果未提供上下文，则 context\_value 为零长度。因此，不提供上下文计算与提供空上下文得到的结果都是相同的。这是对以前版本的 TLS 的更改，以前的 TLS 版本中，空的上下文产生的输出与不提供的上下文的结果不同。截至本文档，无论是否使用上下文，都不会使用已分配的 exporter 标签。未来的规范绝不能定义允许空上下文和没有相同标签的上下文的 exporter 的使用。exporter 的新用法应该是在所有 exporter 计算中提供上下文，尽管值可能为空。
 
@@ -219,4 +219,4 @@ Reference：
 > 
 > Follow: [halfrost · GitHub](HTTPS://github.com/halfrost)
 >
-> Source: []()
+> Source: [https://halfrost.com/TLS\_1.3\_Cryptographic\_Computations/](https://halfrost.com/tls_1-3_cryptographic_computations/)
